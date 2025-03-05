@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0
+/*
+ * Defines the proc operations for the echo deveice
+ */
+
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
@@ -6,8 +11,8 @@
 #include <linux/mutex.h>
 #include "echo_module.h"
 
-static ssize_t echo_proc_read(struct file *file, char __user *buf, size_t count, 
-		       loff_t *pos) 
+static ssize_t echo_proc_read(struct file *file, char __user *buf, size_t count,
+		       loff_t *pos)
 {
 	char *enabled = "enabled\n";
 	char *disabled = "disabled\n";
@@ -18,7 +23,7 @@ static ssize_t echo_proc_read(struct file *file, char __user *buf, size_t count,
 		message = &enabled;
 	else
 		message = &disabled;
-	
+
 	len = min(strlen(*message), count);
 
 	if (*pos >= len)
@@ -33,10 +38,11 @@ static ssize_t echo_proc_read(struct file *file, char __user *buf, size_t count,
 	return len;
 }
 
-static ssize_t echo_proc_write(struct file *file, const char __user *buf, 
+static ssize_t echo_proc_write(struct file *file, const char __user *buf,
 			       size_t count, loff_t *pos)
 {
 	char input_buf[BUF_SIZE];
+
 	count = min_t(size_t, BUF_SIZE - 1, count);
 
 	if (count > 2)
@@ -48,10 +54,10 @@ static ssize_t echo_proc_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 
 	if (input_buf[0] == '1') {
-		printk(KERN_INFO "echo_device: enabled\n");
+		pr_info("echo_device: enabled\n");
 		atomic_set(&device_enabled, 1);
 	} else if (input_buf[0] == '0') {
-		printk(KERN_INFO "echo_device: disabled\n");
+		pr_info("echo_device: disabled\n");
 		atomic_set(&device_enabled, 0);
 	}
 

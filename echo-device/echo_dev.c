@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0
+/*
+ * Define the char dev file operations for echo device
+ */
+
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
@@ -14,9 +19,10 @@ static ssize_t echo_cdev_read(struct file *file, char __user *buf, size_t count,
 	char (*message)[BUF_SIZE] = &buffer;
 	size_t len;
 
+	// Message is the buffer if enabled. Is disable_buf if disabled
 	if (!atomic_read(&device_enabled))
 		message = &disable_buf;
-	
+
 	len = min(strlen(*message), count);
 
 	if (*pos >= len)
@@ -38,9 +44,10 @@ static ssize_t echo_cdev_read(struct file *file, char __user *buf, size_t count,
 	return len;
 }
 
-static ssize_t echo_cdev_write(struct file *file, const char __user *buf, 
+static ssize_t echo_cdev_write(struct file *file, const char __user *buf,
 			       size_t count, loff_t *pos)
 {
+	// Can't write if device isn't enabled
 	if (!atomic_read(&device_enabled))
 		return -EBUSY;
 
@@ -56,7 +63,7 @@ static ssize_t echo_cdev_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-struct file_operations echo_cdev_ops = {
+const struct file_operations echo_cdev_ops = {
 	.read = echo_cdev_read,
 	.write = echo_cdev_write,
 };
