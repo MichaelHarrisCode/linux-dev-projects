@@ -123,8 +123,7 @@ struct bmp280_data {
 	union bmp280_ctrl_meas ctrl_meas;
 	union bmp280_status status;
 	dev_t devt;
-	atomic_t poll_interval;
-	int temperature, pressure;
+	atomic_t poll_interval, temperature, pressure;
 	s32 t_fine;
 };
 
@@ -209,11 +208,13 @@ static void full_read(struct bmp280_data *data)
 
 	i2c_smbus_read_i2c_block_data(data->client, REG_TEMP, REG_TEMP_LEN,
 				      temp_buf);
-	data->temperature = compensate_temperature(reg_to_adc(temp_buf), data);
+	atomic_set(&data->temperature,
+		   compensate_temperature(reg_to_adc(temp_buf), data));
 
 	i2c_smbus_read_i2c_block_data(data->client, REG_PRESS, REG_PRESS_LEN,
 				      press_buf);
-	data->pressure = compensate_pressure(reg_to_adc(temp_buf), data);
+	atomic_set(&data->pressure,
+		   compensate_pressure(reg_to_adc(temp_buf), data));
 
 	data->status.byte = i2c_smbus_read_byte_data(data->client, REG_STATUS);
 }
@@ -234,7 +235,7 @@ static ssize_t temperature_show(struct device *dev,
 	if (!data)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", data->temperature);
+	return sprintf(buf, "%d\n", atomic_read(&data->temperature));
 }
 
 static DEVICE_ATTR_RO(temperature);
@@ -247,7 +248,7 @@ static ssize_t pressure_show(struct device *dev,
 	if (!data)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", data->pressure);
+	return sprintf(buf, "%d\n", atomic_read(&data->pressure));
 }
 
 static DEVICE_ATTR_RO(pressure);
