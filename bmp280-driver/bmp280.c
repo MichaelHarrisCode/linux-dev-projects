@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/hrtimer.h>
 #include <linux/workqueue.h>
+#include <linux/atomic.h>
 
 #define CLASS_NAME "bmp280"
 #define REG_TEMP	0xFA
@@ -122,7 +123,8 @@ struct bmp280_data {
 	union bmp280_ctrl_meas ctrl_meas;
 	union bmp280_status status;
 	dev_t devt;
-	int poll_interval, temperature, pressure;
+	atomic_t poll_interval;
+	int temperature, pressure;
 	s32 t_fine;
 };
 
@@ -205,7 +207,8 @@ static void full_read(struct bmp280_data *data)
 	u8 temp_buf[REG_TEMP_LEN];
 	u8 press_buf[REG_TEMP_LEN];
 
-	i2c_smbus_read_i2c_block_data(data->client, REG_TEMP, REG_TEMP_LEN, temp_buf);
+	i2c_smbus_read_i2c_block_data(data->client, REG_TEMP, REG_TEMP_LEN,
+				      temp_buf);
 	data->temperature = compensate_temperature(reg_to_adc(temp_buf), data);
 
 	i2c_smbus_read_i2c_block_data(data->client, REG_PRESS, REG_PRESS_LEN,
@@ -219,7 +222,8 @@ static void full_read(struct bmp280_data *data)
 static void full_write(struct bmp280_data *data)
 {
 	i2c_smbus_write_byte_data(data->client, REG_CONFIG, data->config.byte);
-	i2c_smbus_write_byte_data(data->client, REG_CTRL_MEAS, data->ctrl_meas.byte);
+	i2c_smbus_write_byte_data(data->client, REG_CTRL_MEAS,
+				  data->ctrl_meas.byte);
 }
 
 static ssize_t temperature_show(struct device *dev,
@@ -257,7 +261,7 @@ static ssize_t poll_interval_show(struct device *dev,
 	if (!data)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", data->poll_interval);
+	return sprintf(buf, "%d\n", atomic_read(&data->poll_interval));
 }
 
 static ssize_t poll_interval_store(struct device *dev,
@@ -279,12 +283,12 @@ static ssize_t poll_interval_store(struct device *dev,
 	if (new_poll_interval < 0)
 		return -EINVAL;
 
-	data->poll_interval = new_poll_interval;
+	atomic_set(&data->poll_interval, new_poll_interval);
 
 	// run once and restart timer with new interval
 	schedule_work(&data->poll_work);
 	hrtimer_cancel(&data->poll_timer);
-	hrtimer_start(&data->poll_timer, ms_to_ktime(data->poll_interval),
+	hrtimer_start(&data->poll_timer, ms_to_ktime(new_poll_interval),
 		      HRTIMER_MODE_REL);
 
 	return count;
@@ -341,7 +345,8 @@ static enum hrtimer_restart bmp280_poll_timer_callback(struct hrtimer *timer)
 
 	schedule_work(&data->poll_work);
 
-	hrtimer_forward_now(timer, ms_to_ktime(data->poll_interval));
+	hrtimer_forward_now(timer,
+			    ms_to_ktime(atomic_read(&data->poll_interval)));
 	return HRTIMER_RESTART;
 }
 
@@ -370,7 +375,7 @@ static int bmp280_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	data->poll_interval = 1000;
+	atomic_set(&data->poll_interval, 1000);
 	data->client = client;
 
 	// Creates a dev_t num and a device
@@ -411,7 +416,8 @@ static int bmp280_probe(struct i2c_client *client)
 
 	INIT_WORK(&data->poll_work, poll_work);
 
-	bmp280_poll_timer_init(&data->poll_timer, data->poll_interval);
+	bmp280_poll_timer_init(&data->poll_timer,
+			       atomic_read(&data->poll_interval));
 
 	pr_info("bmp280: device probed");
 
