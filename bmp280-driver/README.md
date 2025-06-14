@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project involves creating a Linux kernel module that acts as a driver for the **BMP280** sensor (I2C variant). The driver will communicate with the BMP280 over the I2C bus on a Raspberry Pi 3 running Raspberry Pi OS. The module will read temperature and pressure data from the sensor and expose them to user space through the **sysfs** interface.
+This project involves creating a (bare metal) Linux kernel module that acts as a driver for the **BMP280** sensor (I2C variant). The driver will communicate with the BMP280 over the I2C bus on a Raspberry Pi 3 running Raspberry Pi OS. The module will read temperature and pressure data from the sensor and expose them to user space through the **sysfs** interface.
 
 ## Requirements
 
