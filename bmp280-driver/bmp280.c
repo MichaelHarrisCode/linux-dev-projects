@@ -381,6 +381,12 @@ static void poll_work(struct work_struct *workqueue)
 
 	// Used to write data to force a measurement
 	full_write(data);
+
+	// Assumes highest max measurement time (43.2ms)
+	// TODO: Is there some way to make this duration be dependent on the
+	// current oversampling for pressure and temperature?
+	usleep_range(44000, 50000);
+
 	full_read(data);
 }
 
