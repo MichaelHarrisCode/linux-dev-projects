@@ -256,6 +256,7 @@ static void full_write(struct bmp280_data *data)
 	}
 }
 
+// Shows temperature in millidegrees celsiuses
 static ssize_t temperature_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -269,6 +270,7 @@ static ssize_t temperature_show(struct device *dev,
 
 static DEVICE_ATTR_RO(temperature);
 
+// Shows pressure in pascals in "Q24.8" format
 static ssize_t pressure_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -282,6 +284,7 @@ static ssize_t pressure_show(struct device *dev,
 
 static DEVICE_ATTR_RO(pressure);
 
+// Displays poll_interval in milliseconds
 static ssize_t poll_interval_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
@@ -294,6 +297,10 @@ static ssize_t poll_interval_show(struct device *dev,
 	return sprintf(buf, "%d\n", atomic_read(&data->poll_interval));
 }
 
+/*
+ * Accepts poll_intervals in milliseconds
+ * Range accepting is 50ms to 10000ms (10s)
+ */
 static ssize_t poll_interval_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
