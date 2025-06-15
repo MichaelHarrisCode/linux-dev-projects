@@ -210,7 +210,7 @@ static void full_read(struct bmp280_data *data)
 	ret = i2c_smbus_read_i2c_block_data(data->client, REG_TEMP,
 					    REG_TEMP_LEN, temp_buf);
 	if (ret < 0) {
-		pr_err("bmp280: i2c read temp failure");
+		pr_err("bmp280: i2c read temp failure\n");
 		return;
 	}
 
@@ -220,7 +220,7 @@ static void full_read(struct bmp280_data *data)
 	ret = i2c_smbus_read_i2c_block_data(data->client, REG_PRESS,
 					    REG_PRESS_LEN, press_buf);
 	if (ret < 0) {
-		pr_err("bmp280: i2c read pres failure");
+		pr_err("bmp280: i2c read pres failure\n");
 		return;
 	}
 
@@ -229,7 +229,7 @@ static void full_read(struct bmp280_data *data)
 
 	ret = i2c_smbus_read_byte_data(data->client, REG_STATUS);
 	if (ret < 0) {
-		pr_err("bmp280: i2c read status failure");
+		pr_err("bmp280: i2c read status failure\n");
 		return;
 	}
 
@@ -244,14 +244,14 @@ static void full_write(struct bmp280_data *data)
 	ret = i2c_smbus_write_byte_data(data->client, REG_CONFIG,
 					data->config.byte);
 	if (ret < 0) {
-		pr_err("bmp280: i2c write to config failure");
+		pr_err("bmp280: i2c write to config failure\n");
 		return;
 	}
 
 	ret = i2c_smbus_write_byte_data(data->client, REG_CTRL_MEAS,
 					data->ctrl_meas.byte);
 	if (ret < 0) {
-		pr_err("bmp280: i2c write to ctrl_meas failure");
+		pr_err("bmp280: i2c write to ctrl_meas failure\n");
 		return;
 	}
 }
@@ -309,9 +309,18 @@ static ssize_t poll_interval_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	// Ensures number isn't negative
-	if (new_poll_interval < 0)
+	// Ensures number isn't negative and is between 50ms and 10s.
+	// 50ms is bottom boundary due to maximum measure time for ultra high
+	// resolution sampling - whichis 43.2ms.
+	if (new_poll_interval < 0) {
 		return -EINVAL;
+	} else if (new_poll_interval > 10000) {
+		pr_err("bmp280: tried to assign poll_interval greater than 10s\n");
+		return -EINVAL;
+	} else if (new_poll_interval < 50) {
+		pr_err("bmp280: tried to assign poll_interval less than 50ms\n");
+		return -EINVAL;
+	}
 
 	atomic_set(&data->poll_interval, new_poll_interval);
 
@@ -422,7 +431,7 @@ static int bmp280_probe(struct i2c_client *client)
 	ret = i2c_smbus_read_i2c_block_data(client, REG_CALIB_START,
 					    REG_CALIB_LEN, calib_buf);
 	if (ret < 0) {
-		pr_err("bmp280: i2c calibration value read failure");
+		pr_err("bmp280: i2c calibration value read failure\n");
 		return ret;
 	}
 
