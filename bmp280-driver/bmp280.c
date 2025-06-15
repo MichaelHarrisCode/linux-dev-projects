@@ -205,26 +205,55 @@ static void full_read(struct bmp280_data *data)
 {
 	u8 temp_buf[REG_TEMP_LEN];
 	u8 press_buf[REG_TEMP_LEN];
+	int ret;
 
-	i2c_smbus_read_i2c_block_data(data->client, REG_TEMP, REG_TEMP_LEN,
-				      temp_buf);
+	ret = i2c_smbus_read_i2c_block_data(data->client, REG_TEMP,
+					    REG_TEMP_LEN, temp_buf);
+	if (ret < 0) {
+		pr_err("bmp280: i2c read temp failure");
+		return;
+	}
+
 	atomic_set(&data->temperature,
 		   compensate_temperature(reg_to_adc(temp_buf), data));
 
-	i2c_smbus_read_i2c_block_data(data->client, REG_PRESS, REG_PRESS_LEN,
-				      press_buf);
+	ret = i2c_smbus_read_i2c_block_data(data->client, REG_PRESS,
+					    REG_PRESS_LEN, press_buf);
+	if (ret < 0) {
+		pr_err("bmp280: i2c read pres failure");
+		return;
+	}
+
 	atomic_set(&data->pressure,
 		   compensate_pressure(reg_to_adc(temp_buf), data));
 
-	data->status.byte = i2c_smbus_read_byte_data(data->client, REG_STATUS);
+	ret = i2c_smbus_read_byte_data(data->client, REG_STATUS);
+	if (ret < 0) {
+		pr_err("bmp280: i2c read status failure");
+		return;
+	}
+
+	data->status.byte = ret;
 }
 
 // Writes data from data variables into registers
 static void full_write(struct bmp280_data *data)
 {
-	i2c_smbus_write_byte_data(data->client, REG_CONFIG, data->config.byte);
-	i2c_smbus_write_byte_data(data->client, REG_CTRL_MEAS,
-				  data->ctrl_meas.byte);
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(data->client, REG_CONFIG,
+					data->config.byte);
+	if (ret < 0) {
+		pr_err("bmp280: i2c write to config failure");
+		return;
+	}
+
+	ret = i2c_smbus_write_byte_data(data->client, REG_CTRL_MEAS,
+					data->ctrl_meas.byte);
+	if (ret < 0) {
+		pr_err("bmp280: i2c write to ctrl_meas failure");
+		return;
+	}
 }
 
 static ssize_t temperature_show(struct device *dev,
@@ -371,6 +400,7 @@ static int bmp280_probe(struct i2c_client *client)
 {
 	struct bmp280_data *data;
 	u8 calib_buf[REG_CALIB_LEN];
+	int ret;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -389,8 +419,12 @@ static int bmp280_probe(struct i2c_client *client)
 
 	create_dev_files(data->device);
 
-	i2c_smbus_read_i2c_block_data(client, REG_CALIB_START,
-				      REG_CALIB_LEN, calib_buf);
+	ret = i2c_smbus_read_i2c_block_data(client, REG_CALIB_START,
+					    REG_CALIB_LEN, calib_buf);
+	if (ret < 0) {
+		pr_err("bmp280: i2c calibration value read failure");
+		return ret;
+	}
 
 	// Parsing registers into correct calibration variables
 	data->calib.t1 = get_u16_le(&calib_buf[0]);
