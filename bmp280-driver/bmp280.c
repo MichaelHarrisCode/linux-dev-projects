@@ -11,6 +11,7 @@
 #include <linux/hrtimer.h>
 #include <linux/workqueue.h>
 #include <linux/atomic.h>
+#include <linux/delay.h>
 
 #define CLASS_NAME "bmp280"
 #define REG_TEMP	0xFA
@@ -256,6 +257,54 @@ static void full_write(struct bmp280_data *data)
 	}
 }
 
+// Initializes calibration data
+static int init_calib_data(struct i2c_client *client, struct bmp280_data *data)
+{
+	u8 calib_buf[REG_CALIB_LEN];
+	int ret;
+
+	ret = i2c_smbus_read_i2c_block_data(client, REG_CALIB_START,
+					    REG_CALIB_LEN, calib_buf);
+	if (ret < 0) {
+		pr_err("bmp280: i2c calibration value read failure\n");
+		return ret;
+	}
+
+	// Parsing registers into correct calibration variables
+	data->calib.t1 = get_u16_le(&calib_buf[0]);
+	data->calib.t2 = get_s16_le(&calib_buf[2]);
+	data->calib.t3 = get_s16_le(&calib_buf[4]);
+	data->calib.p1 = get_u16_le(&calib_buf[6]);
+	data->calib.p2 = get_s16_le(&calib_buf[8]);
+	data->calib.p3 = get_s16_le(&calib_buf[10]);
+	data->calib.p4 = get_s16_le(&calib_buf[12]);
+	data->calib.p5 = get_s16_le(&calib_buf[14]);
+	data->calib.p6 = get_s16_le(&calib_buf[16]);
+	data->calib.p7 = get_s16_le(&calib_buf[18]);
+	data->calib.p8 = get_s16_le(&calib_buf[20]);
+	data->calib.p9 = get_s16_le(&calib_buf[22]);
+
+	return 0;
+}
+
+// Initializes config data
+// TODO: these configs are hardcoded. Is there a good way to make this more user
+// editable?
+static void init_config_data(struct bmp280_data *data)
+{
+	// initial read of temperature/pressure
+	full_read(data);
+
+	// Sets
+	data->ctrl_meas.bits.osrs_t = OSRS_x2;
+	data->ctrl_meas.bits.osrs_p = OSRS_x16;
+	data->ctrl_meas.bits.mode = FORCED;
+	data->config.bits.t_sb = T_SB_0_5;
+
+	// Initial write to apply above config data
+	full_write(data);
+}
+
 // Shows temperature in millidegrees celsiuses
 static ssize_t temperature_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -374,6 +423,7 @@ static void remove_dev_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_temperature);
 }
 
+// TODO: should this use full_write/read? Or should it used more targeted calls?
 static void poll_work(struct work_struct *workqueue)
 {
 	struct bmp280_data *data = container_of(workqueue, struct bmp280_data,
@@ -417,11 +467,9 @@ static void bmp280_poll_timer_exit(struct hrtimer *timer)
 	hrtimer_cancel(timer);
 }
 
-// TODO: reorganize structure of this
 static int bmp280_probe(struct i2c_client *client)
 {
 	struct bmp280_data *data;
-	u8 calib_buf[REG_CALIB_LEN];
 	int ret;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
@@ -441,35 +489,11 @@ static int bmp280_probe(struct i2c_client *client)
 
 	create_dev_files(data->device);
 
-	ret = i2c_smbus_read_i2c_block_data(client, REG_CALIB_START,
-					    REG_CALIB_LEN, calib_buf);
-	if (ret < 0) {
-		pr_err("bmp280: i2c calibration value read failure\n");
+	ret = init_calib_data(client, data);
+	if (ret < 0)
 		return ret;
-	}
 
-	// Parsing registers into correct calibration variables
-	data->calib.t1 = get_u16_le(&calib_buf[0]);
-	data->calib.t2 = get_s16_le(&calib_buf[2]);
-	data->calib.t3 = get_s16_le(&calib_buf[4]);
-	data->calib.p1 = get_u16_le(&calib_buf[6]);
-	data->calib.p2 = get_s16_le(&calib_buf[8]);
-	data->calib.p3 = get_s16_le(&calib_buf[10]);
-	data->calib.p4 = get_s16_le(&calib_buf[12]);
-	data->calib.p5 = get_s16_le(&calib_buf[14]);
-	data->calib.p6 = get_s16_le(&calib_buf[16]);
-	data->calib.p7 = get_s16_le(&calib_buf[18]);
-	data->calib.p8 = get_s16_le(&calib_buf[20]);
-	data->calib.p9 = get_s16_le(&calib_buf[22]);
-
-	full_read(data);
-
-	data->ctrl_meas.bits.osrs_t = OSRS_x16;
-	data->ctrl_meas.bits.osrs_p = OSRS_x16;
-	data->ctrl_meas.bits.mode = FORCED;
-	data->config.bits.t_sb = T_SB_0_5;
-
-	full_write(data);
+	init_config_data(data);
 
 	INIT_WORK(&data->poll_work, poll_work);
 
