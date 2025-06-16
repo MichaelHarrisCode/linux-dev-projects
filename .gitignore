@@ -1,3 +1,13 @@
 learning
 rust-learning
-*/.cache
+
+# Don't push compiled files
+*.cmd
+*.o
+*.mod
+*.mod.c
+*.ko
+**/.cache
+**/Module.symvers
+**/modules.order
+**/compile_commands.json
