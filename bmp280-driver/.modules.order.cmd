@@ -1,1 +1,0 @@
-savedcmd_/home/terrance/linux-dev/kernel-modules/bmp280-driver/modules.order := {   echo /home/terrance/linux-dev/kernel-modules/bmp280-driver/bmp280.o; :; } > /home/terrance/linux-dev/kernel-modules/bmp280-driver/modules.order

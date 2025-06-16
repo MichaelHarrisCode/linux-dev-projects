@@ -1,1 +1,0 @@
-savedcmd_/home/terrance/linux-dev/kernel-modules/bmp280-driver/Module.symvers :=  scripts/mod/modpost -M -m -a      -o /home/terrance/linux-dev/kernel-modules/bmp280-driver/Module.symvers -n -T /home/terrance/linux-dev/kernel-modules/bmp280-driver/modules.order -i Module.symvers -e 
