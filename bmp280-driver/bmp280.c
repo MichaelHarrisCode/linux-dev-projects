@@ -490,8 +490,10 @@ static int bmp280_probe(struct i2c_client *client)
 	create_dev_files(data->device);
 
 	ret = init_calib_data(client, data);
-	if (ret < 0)
+	if (ret < 0) {
+		goto calib_err;
 		return ret;
+	}
 
 	init_config_data(data);
 
@@ -503,6 +505,12 @@ static int bmp280_probe(struct i2c_client *client)
 	pr_info("bmp280: device probed");
 
 	return 0;
+
+calib_err:
+	remove_dev_files(data->device);
+	device_destroy(bmp280_class, data->devt);
+	unregister_chrdev_region(data->devt, 1);
+	return ret;
 }
 
 static void bmp280_remove(struct i2c_client *client)
@@ -511,11 +519,11 @@ static void bmp280_remove(struct i2c_client *client)
 	struct bmp280_data *data = dev_get_drvdata(&client->dev);
 
 	bmp280_poll_timer_exit(&data->poll_timer);
+	flush_work(&data->poll_work);
+	cancel_work_sync(&data->poll_work);
 	remove_dev_files(data->device);
 	device_destroy(bmp280_class, data->devt);
 	unregister_chrdev_region(data->devt, 1);
-	flush_work(&data->poll_work);
-	cancel_work_sync(&data->poll_work);
 
 	pr_info("bmp280: device removed");
 }
