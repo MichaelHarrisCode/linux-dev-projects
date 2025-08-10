@@ -1,0 +1,8 @@
+config TSL2561
+	tristate "TSL2561 Light Sensor Driver"
+	depends on I2C && IIO
+	help
+		Say Y here to build support for the TSL2561 light sensor.
+		Say M here to build it as a module, which will be called tsl2561.
+		
+		This driver uses the IIO subsystem to show data.
