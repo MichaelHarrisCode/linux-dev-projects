@@ -215,8 +215,7 @@ static int read_data_word(const struct i2c_client *client, u8 reg_address,
 
 	word = get_u16_le(reg_data);
 
-	*channel = le16_to_cpu((__le16)word);
-	*channel = reg_data[1] << 8 | reg_data[0];
+	*channel = le16_to_cpu(word);
 
 	return 0;
 }
