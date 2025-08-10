@@ -417,6 +417,8 @@ static int tsl2561_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
+	dev_info(&client->dev, "tsl2561 probed: iio:device%d\n", indio_dev->id);
+
 	return ret;
 }
 
