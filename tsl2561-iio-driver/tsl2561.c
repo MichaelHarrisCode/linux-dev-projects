@@ -210,8 +210,8 @@ static int read_data_word(const struct i2c_client *client, u8 reg_address,
 	// device isn't built for SMBus
 	ret = i2c_smbus_read_i2c_block_data(client, reg_address, 2,
 					    reg_data);
-	if (ret < 0)
-		return -EINVAL;
+	if (ret)
+		return ret;
 
 	word = get_u16_le(reg_data);
 
